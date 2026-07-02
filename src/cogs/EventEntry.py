@@ -38,6 +38,8 @@ class EventEntry(commands.Cog):
         role = guild.get_role(ENTERED_ROLE) if guild else None
         if role is None:
             print(f"Role with ID {ENTERED_ROLE} not found.")
+            await message.channel.send(f"{author.mention}, there was an error processing your submission. Please contact modmail <@623557041776230403>.", delete_after=10)
+            await message.delete()
             return
         
         # Get submission from attachments
@@ -57,12 +59,14 @@ class EventEntry(commands.Cog):
 
         if not has_image:
             # No attachments found
-            await message.channel.send(f"{message.author.mention}, you must attach an image submission to enter the event.", delete_after=10)
+            await message.channel.send(f"{author.mention}, you must attach an image submission to enter the event.", delete_after=10)
+            await message.delete()  # Delete the original message
             return
         
         if submission is None:
             # Image could not be downloaded
-            await message.channel.send(f"{message.author.mention}, there was an error processing your submission. Please contact modmail <@623557041776230403>.", delete_after=10)
+            await message.channel.send(f"{author.mention}, there was an error processing your submission. Please contact modmail <@623557041776230403>.", delete_after=10)
+            await message.delete()  # Delete the original message
             return
 
         # Successful entry
@@ -76,14 +80,21 @@ class EventEntry(commands.Cog):
         """Download an attachment to a specified path using PIL."""
         r = requests.get(attachment.url)
         if r.status_code == 200:
-            image = Image.open(BytesIO(r.content))
-            image.save(save_path)
-            return image
+            try:
+                image = Image.open(BytesIO(r.content))
+                image.save(save_path)
+                return image
+            except ValueError as e:
+                print(f"Failed to process image from {attachment.url}. Potential invalid file type.Error: {e}")
+                return None
+            except Exception as e:
+                print(f"An unexpected error occurred while processing the image from {attachment.url}. Error: {e}")
+                return None
         else:
             print(f"Failed to download attachment from {attachment.url}. Status code: {r.status_code}")
             return None
 
-    def submission_embed(self, file_path: str, file_name: str) -> discord.Embed:
+    def submission_embed(self) -> discord.Embed:
         """Create an embed for the submission."""
         
         embed = discord.Embed(title=f"Entry #{self.total_entries}", color=discord.Color.from_str(EMBED_COLOR))
@@ -107,12 +118,12 @@ class EventEntry(commands.Cog):
             print(f"Voting channel with ID {VOTING_CHANNEL} is not a text channel.")
             return
         
-        submission_embed = self.submission_embed(file_path, file_name)
+        submission_embed = self.submission_embed()
 
         file = discord.File(fp=file_path, filename=file_name)
         submission_embed.set_image(url=f"attachment://{file_name}")
-        
         await submission_channel.send(f"New submission from {author.mention}, `{author.id}`!", embed=submission_embed, file=file)
+
         file = discord.File(fp=file_path, filename=file_name)
         submission_embed.set_image(url=f"attachment://{file_name}")
         voting_message = await voting_channel.send(embed=submission_embed, file=file)
