@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands
 from dotenv import load_dotenv
 import os
+from cogs.EventEntry import EventEntry
 
 load_dotenv()
 
@@ -11,20 +12,18 @@ if BOT_TOKEN is None:
 
 PREFIX = ".s"
 
+
 class EventBot(commands.Bot):
     def __init__(self):
         intents = discord.Intents.all()
         super().__init__(command_prefix=commands.when_mentioned_or(PREFIX), intents=intents)
 
     async def on_ready(self):
+        await self.add_cog(EventEntry(self))
         print("I'm ready to rumble.")
 
-bot = EventBot()
 
-@bot.command()
-@commands.is_owner()
-async def test(ctx):
-    await ctx.send(f"Hello!")
+bot = EventBot()
 
 bot.run(BOT_TOKEN)
 
